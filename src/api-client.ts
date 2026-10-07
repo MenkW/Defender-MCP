@@ -1,7 +1,10 @@
-import { getAccessToken, getWdatpAccessToken } from "./auth.js";
+import { getAccessToken, getGraphAccessToken, getWdatpAccessToken } from "./auth.js";
 
 const MTP_BASE_URL   = "https://api.security.microsoft.com/api";
 const WDATP_BASE_URL = "https://api.securitycenter.microsoft.com/api";
+const GRAPH_SECURITY_BASE_URL = (
+  process.env.DEFENDER_GRAPH_SECURITY_BASE_URL ?? "https://graph.microsoft.com/v1.0/security"
+).replace(/\/+$/, "");
 
 export interface ApiResponse<T = unknown> {
   value?: T[];
@@ -14,8 +17,10 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   queryParams?: Record<string, string | number | boolean | undefined>;
-  /** Set to true for Alerts, Machines, Files, IPs, URLs, Users, WDATP AdvancedQueries */
+  /** Set to true for Alerts, Machines, Files, IPs, URLs, Users, and other WDATP routes */
   useWdatp?: boolean;
+  /** Set to true for Microsoft Graph Security API routes */
+  useGraph?: boolean;
 }
 
 function buildQueryString(params?: Record<string, string | number | boolean | undefined>): string {
@@ -32,10 +37,14 @@ export async function defenderApiRequest<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, queryParams, useWdatp = false } = options;
+  const { method = "GET", body, queryParams, useGraph = false, useWdatp = false } = options;
 
-  const token   = useWdatp ? await getWdatpAccessToken() : await getAccessToken();
-  const baseUrl = useWdatp ? WDATP_BASE_URL : MTP_BASE_URL;
+  const token = useGraph
+    ? await getGraphAccessToken()
+    : useWdatp
+      ? await getWdatpAccessToken()
+      : await getAccessToken();
+  const baseUrl = useGraph ? GRAPH_SECURITY_BASE_URL : useWdatp ? WDATP_BASE_URL : MTP_BASE_URL;
   const url     = `${baseUrl}${endpoint}${buildQueryString(queryParams)}`;
 
   const headers: Record<string, string> = {
@@ -76,12 +85,18 @@ export async function defenderApiRequestPaginated<T = unknown>(
   const results: T[] = [];
   let nextLink: string | undefined;
   let currentUrl = endpoint;
-  const baseUrl = options.useWdatp ? WDATP_BASE_URL : MTP_BASE_URL;
+  const baseUrl = options.useGraph
+    ? GRAPH_SECURITY_BASE_URL
+    : options.useWdatp
+      ? WDATP_BASE_URL
+      : MTP_BASE_URL;
 
   do {
     const response = await defenderApiRequest<ApiResponse<T>>(
       nextLink ? nextLink.replace(baseUrl, "") : currentUrl,
-      nextLink ? { method: options.method, useWdatp: options.useWdatp } : options
+      nextLink
+        ? { method: options.method, useGraph: options.useGraph, useWdatp: options.useWdatp }
+        : options
     );
 
     if (response.value) {

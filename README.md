@@ -5,8 +5,8 @@ A **Model Context Protocol (MCP) server** for Microsoft Defender XDR and Microso
 ## Features
 
 - **~45 tools** across 9 security categories
-- **Dual-token authentication** — separate Azure AD tokens for the MTP API (`api.security.microsoft.com`) and the WDATP API (`api.securitycenter.microsoft.com`)
-- **XDR cross-workload hunting** — query endpoint, identity, email, and cloud app data in a single KQL query
+- **Multi-resource authentication** — separate Azure AD tokens for Microsoft Graph, the MTP API (`api.security.microsoft.com`), and the WDATP API (`api.securitycenter.microsoft.com`)
+- **Unified advanced hunting** — query Defender XDR and Microsoft Sentinel-native tables through Microsoft Graph
 - **Incident management** — list, get, update incidents with full alert and evidence detail
 - **Device response actions** — isolate machines, run AV scans, collect investigation packages, execute live response
 - **Threat intelligence** — create, import, and manage IOC indicators (file hashes, IPs, domains, URLs)
@@ -19,7 +19,7 @@ A **Model Context Protocol (MCP) server** for Microsoft Defender XDR and Microso
 | Incidents | 4 | List, get, get alerts, update incidents |
 | Alerts | 5 | List, get, update, batch-update, create alerts |
 | Machines | 16 | Get devices, isolate, AV scan, restrict code execution, live response |
-| Advanced Hunting | 2 | WDATP KQL query + XDR cross-workload KQL query |
+| Advanced Hunting | 3 | Unified Graph KQL queries plus per-table schema discovery |
 | Entities | 11 | File hashes, domains, IPs, user alerts and machines |
 | Indicators (IoC) | 5 | Get, create, import, delete threat indicators |
 | Machine Actions | 12 | Investigation packages, live response, automated investigations |
@@ -32,6 +32,9 @@ A **Model Context Protocol (MCP) server** for Microsoft Defender XDR and Microso
 - **Azure AD App Registration** (Microsoft Entra ID) with the following API permissions granted as **Application** permissions (not delegated):
 
 ### Required API Permissions
+
+**Microsoft Graph:**
+- `ThreatHunting.Read.All`
 
 **`api.security.microsoft.com` (Microsoft Threat Protection):**
 - `AdvancedHunting.Read.All`
@@ -77,6 +80,9 @@ A **Model Context Protocol (MCP) server** for Microsoft Defender XDR and Microso
    DEFENDER_TENANT_ID=your-tenant-id
    DEFENDER_CLIENT_ID=your-client-id
    DEFENDER_CLIENT_SECRET=your-client-secret
+   # Optional overrides; these defaults are used when omitted
+   DEFENDER_GRAPH_SCOPE=https://graph.microsoft.com/.default
+   DEFENDER_GRAPH_SECURITY_BASE_URL=https://graph.microsoft.com/v1.0/security
    ```
 
 4. **Build:**
@@ -138,9 +144,10 @@ src/
 
 ### Authentication Architecture
 
-The server uses two separate Azure AD token acquisition flows:
+The server uses separate Azure AD token acquisition flows for each API resource:
 
-- **MTP token** -- scope `https://api.security.microsoft.com/.default` -- used for Incidents and XDR Advanced Hunting
+- **Microsoft Graph token** -- scope `https://graph.microsoft.com/.default` -- used for unified Defender XDR and Microsoft Sentinel advanced hunting
+- **MTP token** -- scope `https://api.security.microsoft.com/.default` -- used for Incidents
 - **WDATP token** -- scope `https://api.securitycenter.microsoft.com/.default` -- used for Alerts, Machines, Indicators, Vulnerabilities, etc.
 
 Both tokens are cached per-scope and automatically refreshed by MSAL.

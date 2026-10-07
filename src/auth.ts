@@ -6,9 +6,10 @@ export interface DefenderAuthConfig {
   clientSecret: string;
 }
 
-// Two separate resource scopes
-const MTP_SCOPE   = "https://api.security.microsoft.com/.default";   // Incidents, XDR Advanced Hunting
+// Separate resource scopes for each Defender API surface
+const MTP_SCOPE   = "https://api.security.microsoft.com/.default";   // Incidents
 const WDATP_SCOPE = "https://api.securitycenter.microsoft.com/.default"; // Alerts, Machines, Files, IPs, etc.
+const GRAPH_SCOPE = process.env.DEFENDER_GRAPH_SCOPE ?? "https://graph.microsoft.com/.default";
 
 let msalClient: ConfidentialClientApplication | null = null;
 
@@ -64,6 +65,11 @@ export async function getAccessToken(): Promise<string> {
 /** Token for Alerts, Machines, Files, IPs, URLs, Users, WDATP Advanced Queries */
 export async function getWdatpAccessToken(): Promise<string> {
   return getTokenForScope(WDATP_SCOPE);
+}
+
+/** Token for Microsoft Graph Security API Advanced Hunting */
+export async function getGraphAccessToken(): Promise<string> {
+  return getTokenForScope(GRAPH_SCOPE);
 }
 
 export function isAuthConfigured(): boolean {
